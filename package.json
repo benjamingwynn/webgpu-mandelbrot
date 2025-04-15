@@ -1,0 +1,10 @@
+{
+	"type": "module",
+	"devDependencies": {
+		"esbuild": "0.25",
+		"@webgpu/types": "~0.1.60"
+	},
+	"scripts": {
+		"dev": "node ./devServer.mjs"
+	}
+}

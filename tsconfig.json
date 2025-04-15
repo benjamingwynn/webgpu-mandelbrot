@@ -1,0 +1,21 @@
+{
+	"compilerOptions": {
+		"composite": true,
+		"target": "ESNext",
+		"module": "NodeNext",
+		"paths": {},
+		"isolatedModules": true,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"strict": true,
+		"skipDefaultLibCheck": true,
+		"skipLibCheck": true,
+		"allowImportingTsExtensions": true,
+		"resolveJsonModule": true,
+		"types": ["@webgpu/types"],
+		"noEmit": true
+	},
+	"include": ["src"],
+	"exclude": ["node_modules"],
+	"references": []
+}
