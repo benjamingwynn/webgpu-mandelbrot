@@ -5,6 +5,6 @@
 		"@webgpu/types": "~0.1.60"
 	},
 	"scripts": {
-		"dev": "node ./devServer.mjs"
+		"start": "node ./devServer.mjs"
 	}
 }

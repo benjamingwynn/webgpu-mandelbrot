@@ -1,31 +1,49 @@
-@group(0) @binding(0) var<storage, read_write> rtn: array<vec2f>;
+// compute.wgsl
+@group(0) @binding(0) var<storage, read_write> rtn: array<f32>;
 @group(0) @binding(1) var<storage, read_write> config: Config;
 
 struct Config {
-	height: f32,
 	width: f32,
+	height: f32,
+	cx: f32,
+	cy: f32,
+	scale: f32,
 }
 
-struct Vertex {
-  @location(0) position: vec2f,
-};
-
-@compute @workgroup_size(128) fn computeSomething(
-@builtin(global_invocation_id) id: vec3u
+@compute @workgroup_size(1, 1) fn main(
+	@builtin(global_invocation_id) id: vec3u
 ) {
-	var here:Vertex;
+	let pixel_index = id.y * u32(config.width) + id.x;
+	let buffer_index = pixel_index * 6;
 
-	let x = -1 + (f32(id.x) / config.width);
-	let y = 1 - (f32(id.y) / config.width);
-	// let z = id.z;
+	let zr = rtn[buffer_index + 0];
+	let zi = rtn[buffer_index + 1];
+	let cr = rtn[buffer_index + 2];
+	let ci = rtn[buffer_index + 3];
+	let iteration = rtn[buffer_index + 4];
+	let alreadyDone = rtn[buffer_index + 5];
 
-	// rtn = vec2f(x,y);
-	rtn[id.x] = vec2f(x, y);
-	// let index = id.x;
+	if (alreadyDone == 0.0) {
+		let ratio = config.width / config.height;
 
-	// rtn = vec2f(0.232, 0.745);
+		let cr_scaled = (cr * ratio) * config.scale + config.cx;
+		let ci_scaled = ci * config.scale + config.cy;
 
-	// return rtn;
+		let newRe = zr * zr - zi * zi + cr_scaled;
+		let newIm = 2.0 * zr * zi + ci_scaled;
 
-	// rtn[rtnIndex] = [1, 1];
+		let magnitude = sqrt(newRe * newRe + newIm * newIm);
+
+		rtn[buffer_index + 0] = newRe;
+		rtn[buffer_index + 1] = newIm;
+		rtn[buffer_index + 2] = cr;
+		rtn[buffer_index + 3] = ci;
+		rtn[buffer_index + 4] = iteration + 1;
+		// bit of a hack using f32 as a boolean representation
+		if (magnitude > 2) {
+			rtn[buffer_index + 5] = 1.0;
+		} else {
+			rtn[buffer_index + 5] = 0.0;
+		}
+	}
 }

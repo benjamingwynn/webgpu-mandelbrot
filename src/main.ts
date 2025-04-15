@@ -1,11 +1,11 @@
 new EventSource("/esbuild").addEventListener("change", () => location.reload())
 
-import moduleWGSL from "./module.wgsl"
+import moduleWGSL from "./module.wgsl" // module.wgsl is known working, if we skip compute step then it renders properly
 import computeWGSL from "./compute.wgsl"
-// import vertWGSL from "./vert.wgsl"
-// import fragWGSL from "./frag.wgsl"
 
 const canvas = document.createElement("canvas")
+canvas.width = 900
+canvas.height = 600
 document.body.appendChild(canvas)
 canvas.setAttribute("style", `border: blue solid 1px`)
 const ctx = canvas.getContext("webgpu")
@@ -28,13 +28,45 @@ ctx.configure({
 
 const width = canvas.width
 const height = canvas.height
+const points = []
+for (let yIndex = 0; yIndex < height; yIndex++) {
+	for (let xIndex = 0; xIndex < width; xIndex++) {
+		const x = -1 + xIndex / (width / 2)
+		const y = 1 - yIndex / (height / 2)
 
-// todo: need to probably * by float 32 size
-const computeBufferSize = width * height
-const renderBufferSize = width * height
-const renderDrawPassCount = width * 1
-const computeConfig = new Float32Array([width, height])
+		const zr = 0
+		const zi = 0
+		const cr = x
+		const ci = y
+		const iteration = 0
+		const done = 0
+
+		points.push(zr, zi, cr, ci, iteration, done)
+	}
+}
+
+const computePasses = 400
+
+// we need to create a point for each pixel on the screen
+const initialPoints = new Float32Array(points)
+const initialPointsSize = initialPoints.byteLength
+const computeBufferSize = initialPoints.byteLength
+const renderBufferSize = initialPoints.byteLength
+const renderDrawPassCount = width * height
+const cx = -0.746
+const cy = -0.11
+let scale = 1
+const setConfig = (width: number, height: number, cx: number, cy: number, scale: number) => {
+	computeConfig.set([width, height, cx, cy, scale])
+	device.queue.writeBuffer(computeConfigBuffer, 0, computeConfig)
+}
+const computeConfig = new Float32Array([width, height, cx, cy, scale])
 const computeConfigBufferSize = computeConfig.byteLength
+const initialBuffer = device.createBuffer({
+	label: "initialBuffer",
+	size: initialPointsSize,
+	usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST | GPUBufferUsage.VERTEX,
+})
 
 // buffer to go from compute pass to render pass
 const computeWorkingBuffer = device.createBuffer({
@@ -130,12 +162,17 @@ const renderPipeline = device.createRenderPipeline({
 		entryPoint: "vs",
 		buffers: [
 			{
-				arrayStride: 2 * 4, // 2 floats of 4 bytes
+				arrayStride: 6 * 4, // 6 floats of 4 bytes
 				attributes: [
 					{
 						shaderLocation: 0,
 						offset: 0,
-						format: "float32x2",
+						format: "float32x3",
+					},
+					{
+						shaderLocation: 1,
+						offset: 3 * 4,
+						format: "float32x3",
 					},
 				],
 			},
@@ -168,8 +205,17 @@ const renderPipeline = device.createRenderPipeline({
 	},
 })
 
+let renderTime: number
 const onFrame = () => {
-	console.log("draw frame!")
+	const tStart = performance.now()
+	device.queue.writeBuffer(initialBuffer, 0, initialPoints)
+
+	const encoder = device.createCommandEncoder({
+		label: "encoder",
+	})
+
+	// console.log("draw frame!", [...initialPoints.subarray(0, 10)])
+	encoder.copyBufferToBuffer(initialBuffer, 0, computeWorkingBuffer, 0, computeWorkingBuffer.size)
 
 	const computeBindGroup = device.createBindGroup({
 		label: "computeBindGroup",
@@ -180,24 +226,20 @@ const onFrame = () => {
 			{binding: 1, resource: {buffer: computeConfigBuffer}},
 		],
 	})
-	const encoder = device.createCommandEncoder({
-		label: "encoder",
-	})
 
 	const computePass = encoder.beginComputePass({
 		label: "computePass",
 	})
 	computePass.setPipeline(computePipeline)
 	computePass.setBindGroup(0, computeBindGroup)
-	// ...
-	computePass.dispatchWorkgroups(width, height)
-	// ...
+	// make sure we dispatch correct number of work groups!
+	for (let i = 0; i < computePasses; i++) {
+		computePass.dispatchWorkgroups(width, height)
+	}
 	computePass.end()
 
 	// copy working buffer to result buffer
 	encoder.copyBufferToBuffer(computeWorkingBuffer, 0, computeResultBuffer, 0, computeResultBuffer.size)
-
-	// ..
 
 	// draw the result:
 	const renderBindGroup = device.createBindGroup({
@@ -230,8 +272,72 @@ const onFrame = () => {
 
 	passEncoderRender.end()
 
+	// <DEBUG>
+	const copyToDebugBuffer = computeWorkingBuffer
+	const debugBuffer = device.createBuffer({
+		label: "debugBuffer",
+		size: copyToDebugBuffer.size,
+		usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+	})
+	encoder.copyBufferToBuffer(copyToDebugBuffer, 0, debugBuffer, 0, debugBuffer.size)
+	// </DEBUG>
+
 	device.queue.submit([encoder.finish()])
+
+	const tEnd = performance.now()
+	renderTime = tEnd - tStart
+	return renderTime
+
+	// // <DEBUG>
+	// await debugBuffer.mapAsync(GPUMapMode.READ)
+	// const mapped = debugBuffer.getMappedRange()
+	// const debug = new Float32Array(mapped)
+	// // console.log("{DEBUG}", debug.subarray(0, 16))
+	// const N_TO_PRINT = 10
+	// const FIELDS_PER_PIXEL = 6
+	// for (let i = 0; i < N_TO_PRINT; i++) {
+	// 	const start = i * FIELDS_PER_PIXEL
+	// 	const here = debug.slice(start, start + FIELDS_PER_PIXEL)
+	// 	const [zr, zi, cr, ci, iteration, done] = here
+	// 	console.log(i, "-", {zr, zi}, cr, ci, {iteration, done})
+	// }
+
+	// window.__debug = debug
+	// // </DEBUG>
 }
 
 // draw a single frame
-onFrame()
+const debug = document.createElement("code")
+let nFrame = 0
+let pause = false
+const doFrame = () => {
+	if (!pause) {
+		const t0 = performance.now()
+		setConfig(width, height, cx, cy, (scale *= 0.99))
+		const msForCopy = performance.now() - t0
+		const msForFrame = onFrame()
+		if (nFrame % 60 === 0) {
+			const tMs = msForCopy + msForFrame
+			const fps = "?"
+			debug.innerText = tMs + "ms. copy=" + msForCopy + " compute+render=" + msForFrame + ". " + fps + " fps. passes=" + computePasses
+		}
+		nFrame++
+	}
+	requestAnimationFrame(doFrame)
+}
+const reset = document.createElement("button")
+reset.type = "button"
+reset.innerText = "reset scale"
+reset.onclick = () => {
+	scale = 1
+}
+document.body.append(reset)
+const playPause = document.createElement("button")
+playPause.type = "button"
+playPause.innerText = "play/pause"
+playPause.onclick = () => {
+	pause = !pause
+}
+document.body.append(playPause)
+document.body.append(debug)
+requestAnimationFrame(doFrame)
