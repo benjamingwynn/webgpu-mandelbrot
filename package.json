@@ -5,6 +5,7 @@
 		"@webgpu/types": "~0.1.60"
 	},
 	"scripts": {
-		"start": "node ./devServer.mjs"
+		"start": "node ./devServer.mjs",
+		"build": "npx esbuild --bundle --format=esm --loader:.wgsl=text --outdir=www/.esbuild src/main.ts"
 	}
 }
