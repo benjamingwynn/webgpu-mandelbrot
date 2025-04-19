@@ -205,6 +205,24 @@ const renderPipeline = device.createRenderPipeline({
 	},
 })
 
+const computeBindGroup = device.createBindGroup({
+	label: "computeBindGroup",
+	layout: computeBindGroupLayout,
+	entries: [
+		{binding: 0, resource: {buffer: computeWorkingBuffer}},
+		{binding: 1, resource: {buffer: computeConfigBuffer}},
+	],
+})
+
+const renderBindGroup = device.createBindGroup({
+	label: "renderBindGroup",
+	layout: renderBindGroupLayout,
+	entries: [
+		{binding: 0, resource: {buffer: computeResultBuffer}},
+		{binding: 1, resource: {buffer: renderDrawBuffer}},
+	],
+})
+
 let renderTime: number
 const onFrame = () => {
 	const tStart = performance.now()
@@ -216,15 +234,6 @@ const onFrame = () => {
 
 	// console.log("draw frame!", [...initialPoints.subarray(0, 10)])
 	encoder.copyBufferToBuffer(initialBuffer, 0, computeWorkingBuffer, 0, computeWorkingBuffer.size)
-
-	const computeBindGroup = device.createBindGroup({
-		label: "computeBindGroup",
-		layout: computeBindGroupLayout,
-		entries: [
-			{binding: 0, resource: {buffer: computeWorkingBuffer}},
-			{binding: 1, resource: {buffer: computeConfigBuffer}},
-		],
-	})
 
 	const computePass = encoder.beginComputePass({
 		label: "computePass",
@@ -241,15 +250,6 @@ const onFrame = () => {
 	encoder.copyBufferToBuffer(computeWorkingBuffer, 0, computeResultBuffer, 0, computeResultBuffer.size)
 
 	// draw the result:
-	const renderBindGroup = device.createBindGroup({
-		label: "renderBindGroup",
-		layout: renderBindGroupLayout,
-		entries: [
-			{binding: 0, resource: {buffer: computeResultBuffer}},
-			{binding: 1, resource: {buffer: renderDrawBuffer}},
-		],
-	})
-
 	const textureView = ctx.getCurrentTexture().createView()
 
 	const renderPassDescriptor: GPURenderPassDescriptor = {
