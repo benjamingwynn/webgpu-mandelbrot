@@ -3,7 +3,7 @@ import * as esbuild from "esbuild"
 const ctx = await esbuild.context({
 	entryPoints: ["src/main.ts"],
 	bundle: true,
-	outdir: "www/.esbuild",
+	outdir: "www/dist",
 	format: "esm",
 	loader: {
 		".wgsl": "text",

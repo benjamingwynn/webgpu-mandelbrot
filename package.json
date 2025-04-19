@@ -6,6 +6,6 @@
 	},
 	"scripts": {
 		"start": "node ./devServer.mjs",
-		"build": "npx esbuild --bundle --format=esm --loader:.wgsl=text --outdir=www/.esbuild src/main.ts"
+		"build": "npx esbuild --bundle --format=esm --loader:.wgsl=text --outdir=www/dist src/main.ts"
 	}
 }
