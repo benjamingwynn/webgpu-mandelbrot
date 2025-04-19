@@ -6,7 +6,7 @@ rendering the mandelbrot set in webgpu
 
 ### live demo
 
-(todo)
+https://webgpu-mandelbrot.netlify.app
 
 ### limitations
 
