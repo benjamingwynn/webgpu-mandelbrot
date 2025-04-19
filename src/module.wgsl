@@ -23,8 +23,8 @@ struct VertexOutput {
 	var z: f32;
 	if (done == 1.0) {
 		// we escaped, so color based on how many we took to escape
-		// todo: why 50?
-		z = iteration / 100;
+		// todo: this hard coded number should be the max number of iterations
+		z = iteration / 500;
 	} else {
 		// we never escaped, so color black
 		z = 0.0;

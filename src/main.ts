@@ -1,11 +1,11 @@
 new EventSource("/esbuild").addEventListener("change", () => location.reload())
 
-import moduleWGSL from "./module.wgsl" // module.wgsl is known working, if we skip compute step then it renders properly
+import moduleWGSL from "./module.wgsl"
 import computeWGSL from "./compute.wgsl"
 
 const canvas = document.createElement("canvas")
-canvas.width = 900
-canvas.height = 600
+canvas.width = 1200
+canvas.height = 800
 document.body.appendChild(canvas)
 canvas.setAttribute("style", `border: blue solid 1px`)
 const ctx = canvas.getContext("webgpu")
@@ -45,7 +45,7 @@ for (let yIndex = 0; yIndex < height; yIndex++) {
 	}
 }
 
-const computePasses = 400
+const computePasses = 500
 
 // we need to create a point for each pixel on the screen
 const initialPoints = new Float32Array(points)
@@ -53,9 +53,9 @@ const initialPointsSize = initialPoints.byteLength
 const computeBufferSize = initialPoints.byteLength
 const renderBufferSize = initialPoints.byteLength
 const renderDrawPassCount = width * height
-const cx = -0.746
-const cy = -0.11
-let scale = 1
+let cx = -0.746
+let cy = -0.11
+let scale = 2
 const setConfig = (width: number, height: number, cx: number, cy: number, scale: number) => {
 	computeConfig.set([width, height, cx, cy, scale])
 	device.queue.writeBuffer(computeConfigBuffer, 0, computeConfig)
@@ -221,7 +221,6 @@ const onFrame = () => {
 		label: "computeBindGroup",
 		layout: computeBindGroupLayout,
 		entries: [
-			//
 			{binding: 0, resource: {buffer: computeWorkingBuffer}},
 			{binding: 1, resource: {buffer: computeConfigBuffer}},
 		],
@@ -272,15 +271,15 @@ const onFrame = () => {
 
 	passEncoderRender.end()
 
-	// <DEBUG>
-	const copyToDebugBuffer = computeWorkingBuffer
-	const debugBuffer = device.createBuffer({
-		label: "debugBuffer",
-		size: copyToDebugBuffer.size,
-		usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-	})
-	encoder.copyBufferToBuffer(copyToDebugBuffer, 0, debugBuffer, 0, debugBuffer.size)
-	// </DEBUG>
+	// // <DEBUG>
+	// const copyToDebugBuffer = computeWorkingBuffer
+	// const debugBuffer = device.createBuffer({
+	// 	label: "debugBuffer",
+	// 	size: copyToDebugBuffer.size,
+	// 	usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+	// })
+	// encoder.copyBufferToBuffer(copyToDebugBuffer, 0, debugBuffer, 0, debugBuffer.size)
+	// // </DEBUG>
 
 	device.queue.submit([encoder.finish()])
 
@@ -307,9 +306,10 @@ const onFrame = () => {
 }
 
 // draw a single frame
+onFrame()
 const debug = document.createElement("code")
 let nFrame = 0
-let pause = false
+let pause = true
 const doFrame = () => {
 	if (!pause) {
 		const t0 = performance.now()
@@ -318,8 +318,13 @@ const doFrame = () => {
 		const msForFrame = onFrame()
 		if (nFrame % 60 === 0) {
 			const tMs = msForCopy + msForFrame
-			const fps = "?"
-			debug.innerText = tMs + "ms. copy=" + msForCopy + " compute+render=" + msForFrame + ". " + fps + " fps. passes=" + computePasses
+			const fps = (1000 / tMs).toFixed(1)
+			debug.innerText =
+				"scale=" + scale + ". " + tMs + "ms. copy=" + msForCopy + " compute+render=" + msForFrame + ". " + fps + " fps. passes=" + computePasses
+
+			if (scale < 1e-7) {
+				scale = 2
+			}
 		}
 		nFrame++
 	}
@@ -329,7 +334,7 @@ const reset = document.createElement("button")
 reset.type = "button"
 reset.innerText = "reset scale"
 reset.onclick = () => {
-	scale = 1
+	scale = 2
 }
 document.body.append(reset)
 const playPause = document.createElement("button")
