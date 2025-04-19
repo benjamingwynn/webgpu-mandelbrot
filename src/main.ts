@@ -229,7 +229,7 @@ const renderBindGroup = device.createBindGroup({
 })
 
 let renderTime: number
-const onFrame = () => {
+const computeAndDraw = () => {
 	const tStart = performance.now()
 	device.queue.writeBuffer(initialBuffer, 0, initialPoints)
 
@@ -312,7 +312,7 @@ const onFrame = () => {
 }
 
 // draw a single frame
-onFrame()
+computeAndDraw()
 const debug = document.createElement("code")
 let nFrame = 0
 let pause = true
@@ -321,7 +321,7 @@ const doFrame = () => {
 		const t0 = performance.now()
 		setConfig(width, height, cx, cy, (scale *= 0.99))
 		const msForCopy = performance.now() - t0
-		const msForFrame = onFrame()
+		const msForFrame = computeAndDraw()
 		if (nFrame % 60 === 0) {
 			const tMs = msForCopy + msForFrame
 			const fps = (1000 / tMs).toFixed(1)
@@ -341,6 +341,7 @@ reset.type = "button"
 reset.innerText = "reset scale"
 reset.onclick = () => {
 	scale = 2
+	computeAndDraw()
 }
 document.body.append(reset)
 const playPause = document.createElement("button")
