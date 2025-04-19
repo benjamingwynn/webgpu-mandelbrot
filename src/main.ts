@@ -1,8 +1,16 @@
 new EventSource("/esbuild").addEventListener("change", () => location.reload())
 
-import moduleWGSL from "./module.wgsl"
+import renderWGSL from "./render.wgsl"
 import computeWGSL from "./compute.wgsl"
 
+// settings:
+const computePasses = 500
+let cx = -0.746
+let cy = -0.11
+let scale = 2
+
+const nogpu = document.createElement("h1")
+nogpu.textContent = "your browser doesn't have WebGPU enabled, or it couldn't get a GPU"
 const canvas = document.createElement("canvas")
 canvas.width = 1200
 canvas.height = 800
@@ -10,12 +18,14 @@ document.body.appendChild(canvas)
 canvas.setAttribute("style", `border: blue solid 1px`)
 const ctx = canvas.getContext("webgpu")
 if (!ctx) {
+	document.body.append(nogpu)
 	throw new Error("browser does not support WebGPU")
 }
 
 const adapter = await navigator.gpu?.requestAdapter()
 const device = await adapter?.requestDevice({requiredLimits: {maxBufferSize: 1024 * 1024}})
 if (!device) {
+	document.body.append(nogpu)
 	throw new Error("need a browser that supports WebGPU")
 }
 
@@ -45,17 +55,12 @@ for (let yIndex = 0; yIndex < height; yIndex++) {
 	}
 }
 
-const computePasses = 500
-
 // we need to create a point for each pixel on the screen
 const initialPoints = new Float32Array(points)
 const initialPointsSize = initialPoints.byteLength
 const computeBufferSize = initialPoints.byteLength
 const renderBufferSize = initialPoints.byteLength
 const renderDrawPassCount = width * height
-let cx = -0.746
-let cy = -0.11
-let scale = 2
 const setConfig = (width: number, height: number, cx: number, cy: number, scale: number) => {
 	computeConfig.set([width, height, cx, cy, scale])
 	device.queue.writeBuffer(computeConfigBuffer, 0, computeConfig)
@@ -149,7 +154,7 @@ const renderBindGroupPipelineLayout = device.createPipelineLayout({
 
 const module = device.createShaderModule({
 	label: "render module",
-	code: moduleWGSL,
+	code: renderWGSL,
 })
 
 const renderPipeline = device.createRenderPipeline({
@@ -272,6 +277,7 @@ const onFrame = () => {
 	passEncoderRender.end()
 
 	// // <DEBUG>
+	// // WARNING: THIS CREATES A NEW BUFFER EVERY FRAME AND **WILL** CAUSE A MEMORY LEAK!
 	// const copyToDebugBuffer = computeWorkingBuffer
 	// const debugBuffer = device.createBuffer({
 	// 	label: "debugBuffer",
