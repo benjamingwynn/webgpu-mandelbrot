@@ -8,6 +8,8 @@ rendering the mandelbrot set in webgpu
 
 https://webgpu-mandelbrot.netlify.app
 
+[![Netlify Status](https://api.netlify.com/api/v1/badges/7737f919-005f-4398-80cc-e2fb7c962272/deploy-status)](https://app.netlify.com/sites/webgpu-mandelbrot/deploys)
+
 ### limitations
 
 as of writing only Chrome supports WebGPU, so that's the only browser where this'll work
