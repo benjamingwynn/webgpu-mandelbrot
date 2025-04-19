@@ -23,7 +23,7 @@ if (!ctx) {
 }
 
 const adapter = await navigator.gpu?.requestAdapter()
-const device = await adapter?.requestDevice({requiredLimits: {maxBufferSize: 1024 * 1024}})
+const device = await adapter?.requestDevice()
 if (!device) {
 	document.body.append(nogpu)
 	throw new Error("need a browser that supports WebGPU")
