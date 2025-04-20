@@ -9,9 +9,20 @@
 
     body {
       margin: 0;
+      display: flex;
+      flex-flow: column nowrap;
     }
   </style>
 </head>
 <body>
+  <form action="">
+    <input placeholder="width" name="width" type="number" step="1" min="64" max="4096" />
+    <input placeholder="height" name="height" type="number" step="1" min="64" max="4096" />
+    <input placeholder="cx" name="cx" type="number" step="0.001" min="-1" max="1" />
+    <input placeholder="cy" name="cy" type="number" step="0.001" min="-1" max="1" />
+    <input placeholder="scale" name="scale" type="number" step="0.0000001" min="0" max="10" />
+    <input placeholder="scaleSpeed" name="scaleSpeed" type="number" step="0.001" min="0" max="1" />
+    <button type="submit">change settings</button>
+  </form>
   <script type="module" src="/dist/main.js"></script>
 </body>

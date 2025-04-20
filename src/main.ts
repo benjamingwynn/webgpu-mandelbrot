@@ -5,15 +5,26 @@ import computeWGSL from "./compute.wgsl"
 
 // settings:
 const computePasses = 500
-let cx = -0.746
-let cy = -0.11
-let scale = 2
+const opts = Object.fromEntries(new URLSearchParams(location.search).entries())
+const width = opts.width ? +opts.width : 800
+const height = opts.height ? +opts.height : 450
+let cx = opts.cx ? +opts.cx : -0.746
+let cy = opts.cy ? +opts.cy : -0.11
+let scale = opts.scale ? +opts.scale : 2
+let scaleSpeed = opts.scaleSpeed ? +opts.scaleSpeed : 0.99
+
+document.querySelector(`input[name=width]`).value = width
+document.querySelector(`input[name=height]`).value = height
+document.querySelector(`input[name=cx]`).value = cx
+document.querySelector(`input[name=cy]`).value = cy
+document.querySelector(`input[name=scale]`).value = scale
+document.querySelector(`input[name=scaleSpeed]`).value = scaleSpeed
 
 const nogpu = document.createElement("h1")
 nogpu.textContent = "your browser doesn't have WebGPU enabled, or it couldn't get a GPU"
 const canvas = document.createElement("canvas")
-canvas.width = 1200
-canvas.height = 800
+canvas.width = width
+canvas.height = height
 document.body.appendChild(canvas)
 canvas.setAttribute("style", `border: blue solid 1px`)
 const ctx = canvas.getContext("webgpu")
@@ -36,8 +47,6 @@ ctx.configure({
 	alphaMode: "premultiplied",
 })
 
-const width = canvas.width
-const height = canvas.height
 const points = []
 for (let yIndex = 0; yIndex < height; yIndex++) {
 	for (let xIndex = 0; xIndex < width; xIndex++) {
@@ -314,25 +323,33 @@ const computeAndDraw = () => {
 // draw a single frame
 computeAndDraw()
 const debug = document.createElement("code")
+const debug2 = document.createElement("code")
 let nFrame = 0
 let pause = true
+let frameTimes: number[] = []
 const doFrame = () => {
 	if (!pause) {
 		const t0 = performance.now()
-		setConfig(width, height, cx, cy, (scale *= 0.99))
+		setConfig(width, height, cx, cy, (scale *= scaleSpeed))
 		const msForCopy = performance.now() - t0
 		const msForFrame = computeAndDraw()
-		if (nFrame % 60 === 0) {
-			const tMs = msForCopy + msForFrame
-			const fps = (1000 / tMs).toFixed(1)
-			debug.innerText =
-				"scale=" + scale + ". " + tMs + "ms. copy=" + msForCopy + " compute+render=" + msForFrame + ". " + fps + " fps. passes=" + computePasses
+		nFrame++
+		const tMs = msForCopy + msForFrame
+		frameTimes.push(tMs)
+
+		if (nFrame % 6 === 0) {
+			debug.innerText = "scale=" + scale + ". " + tMs + "ms. copy=" + msForCopy + " compute+render=" + msForFrame + ". passes=" + computePasses
 
 			if (scale < 1e-7) {
 				scale = 2
+				const totalTime = frameTimes.reduce((x, acc) => acc + x, 0)
+				const avgMs = totalTime / frameTimes.length
+				const avgFps = 1000 / avgMs
+				const msg = `drew ${frameTimes.length} frames in ${totalTime}ms, ${avgMs.toFixed(1)}ms avg (~ ${avgFps.toFixed(1)} FPS)`
+				debug2.textContent = msg
+				frameTimes = []
 			}
 		}
-		nFrame++
 	}
 	requestAnimationFrame(doFrame)
 }
@@ -352,4 +369,12 @@ playPause.onclick = () => {
 }
 document.body.append(playPause)
 document.body.append(debug)
+document.body.append(debug2)
+const resetAll = document.createElement("button")
+resetAll.type = "button"
+resetAll.innerText = "reset all parameters"
+resetAll.onclick = () => {
+	location = location.pathname
+}
+document.body.append(resetAll)
 requestAnimationFrame(doFrame)
