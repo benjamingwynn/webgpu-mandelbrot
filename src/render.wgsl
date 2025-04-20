@@ -1,6 +1,15 @@
+// render.wgsl
+
+// fn decode_fp64(v: vec2f) -> f32 {
+// 	return v.x + v.y;
+// }
+
 struct Vertex {
-	@location(0) a: vec3f,
-	@location(1) b: vec3f,
+	// @location(0) cr_enc: vec2f,
+	// @location(1) ci_enc: vec2f,
+	@location(2) z: vec2f,
+	// screen space position in 32 bit, never changes
+	@location(3) pos: vec2f,
 };
 
 struct VertexOutput {
@@ -10,15 +19,11 @@ struct VertexOutput {
 @vertex fn vs(vert: Vertex,) -> VertexOutput {
 	var vsOut: VertexOutput;
 
-	let zr = vert.a.x;
-	let zi = vert.a.y;
-	let cr = vert.a.z;
-	let ci = vert.b.x;
-	let iteration = vert.b.y;
-	let done = vert.b.z;
+	let iteration = vert.z.x;
+	let done = vert.z.y;
 
-	let x = cr;
-	let y = ci;
+	let x = vert.pos.x;
+	let y = vert.pos.y;
 
 	var z: f32;
 	if (done == 1.0) {

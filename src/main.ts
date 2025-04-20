@@ -12,7 +12,7 @@ let scale = 2
 const nogpu = document.createElement("h1")
 nogpu.textContent = "your browser doesn't have WebGPU enabled, or it couldn't get a GPU"
 const canvas = document.createElement("canvas")
-canvas.width = 1200
+canvas.width = 1000
 canvas.height = 800
 document.body.appendChild(canvas)
 canvas.setAttribute("style", `border: blue solid 1px`)
@@ -36,6 +36,12 @@ ctx.configure({
 	alphaMode: "premultiplied",
 })
 
+function splitFloat64ToFloat32Pair(value: number): [number, number] {
+	const hi = Math.fround(value)
+	const lo = Math.fround(value - hi)
+	return [hi, lo]
+}
+
 const width = canvas.width
 const height = canvas.height
 const points = []
@@ -44,14 +50,30 @@ for (let yIndex = 0; yIndex < height; yIndex++) {
 		const x = -1 + xIndex / (width / 2)
 		const y = 1 - yIndex / (height / 2)
 
-		const zr = 0
-		const zi = 0
-		const cr = x
-		const ci = y
+		const zr_hi = 0
+		const zr_lo = 0
+		const zi_hi = 0
+		const zi_lo = 0
+		const [cr_hi, cr_lo] = splitFloat64ToFloat32Pair(x)
+		const [ci_hi, ci_lo] = splitFloat64ToFloat32Pair(y)
 		const iteration = 0
 		const done = 0
 
-		points.push(zr, zi, cr, ci, iteration, done)
+		points.push(
+			//
+			zr_hi,
+			zr_lo,
+			zi_hi,
+			zi_lo,
+			cr_hi,
+			cr_lo,
+			ci_hi,
+			ci_lo,
+			iteration,
+			done,
+			x,
+			y
+		)
 	}
 }
 
@@ -61,11 +83,18 @@ const initialPointsSize = initialPoints.byteLength
 const computeBufferSize = initialPoints.byteLength
 const renderBufferSize = initialPoints.byteLength
 const renderDrawPassCount = width * height
-const setConfig = (width: number, height: number, cx: number, cy: number, scale: number) => {
-	computeConfig.set([width, height, cx, cy, scale])
+const createComputeConfig = () => {
+	const [scaleHi, scaleLo] = splitFloat64ToFloat32Pair(scale)
+	const [cxHi, cxLo] = splitFloat64ToFloat32Pair(cx)
+	const [cyHi, cyLo] = splitFloat64ToFloat32Pair(cy)
+	const cfg = new Float32Array([width, height, cxHi, cxLo, cyHi, cyLo, scaleHi, scaleLo])
+	return cfg
+}
+const setConfig = () => {
+	computeConfig.set(createComputeConfig())
 	device.queue.writeBuffer(computeConfigBuffer, 0, computeConfig)
 }
-const computeConfig = new Float32Array([width, height, cx, cy, scale])
+const computeConfig = createComputeConfig()
 const computeConfigBufferSize = computeConfig.byteLength
 const initialBuffer = device.createBuffer({
 	label: "initialBuffer",
@@ -167,17 +196,46 @@ const renderPipeline = device.createRenderPipeline({
 		entryPoint: "vs",
 		buffers: [
 			{
-				arrayStride: 6 * 4, // 6 floats of 4 bytes
+				arrayStride: 12 * 4, // 12 floats of 4 bytes
 				attributes: [
+					// zi_hi
+					// zi_lo
+					// zr_hi
+					// zr_lo
+					// {
+					// 	// stuff we don't need
+					// 	shaderLocation: 9,
+					// 	offset: 0,
+					// 	format: "float32x4",
+					// },
+					// cr_hi
+					// cr_lo
+					// {
+					// 	shaderLocation: 0,
+					// 	offset: 4 * 4, // offset 4 floats of 4 bytes to ignore zi/zr_hi/lo
+					// 	format: "float32x2",
+					// },
+					// // ci_hi
+					// // ci_lo
+					// {
+					// 	shaderLocation: 1,
+					// 	offset: 6 * 4,
+					// 	format: "float32x2",
+					// },
+					// iteration
+					// finished
 					{
-						shaderLocation: 0,
-						offset: 0,
-						format: "float32x3",
+						// iteration and done
+						shaderLocation: 2,
+						offset: 8 * 4,
+						format: "float32x2",
 					},
+					// x
+					// y
 					{
-						shaderLocation: 1,
-						offset: 3 * 4,
-						format: "float32x3",
+						shaderLocation: 3,
+						offset: 10 * 4,
+						format: "float32x2",
 					},
 				],
 			},
@@ -237,7 +295,6 @@ const computeAndDraw = () => {
 		label: "encoder",
 	})
 
-	// console.log("draw frame!", [...initialPoints.subarray(0, 10)])
 	encoder.copyBufferToBuffer(initialBuffer, 0, computeWorkingBuffer, 0, computeWorkingBuffer.size)
 
 	const computePass = encoder.beginComputePass({
@@ -299,7 +356,7 @@ const computeAndDraw = () => {
 	// const debug = new Float32Array(mapped)
 	// // console.log("{DEBUG}", debug.subarray(0, 16))
 	// const N_TO_PRINT = 10
-	// const FIELDS_PER_PIXEL = 6
+	// const FIELDS_PER_PIXEL = 10
 	// for (let i = 0; i < N_TO_PRINT; i++) {
 	// 	const start = i * FIELDS_PER_PIXEL
 	// 	const here = debug.slice(start, start + FIELDS_PER_PIXEL)
@@ -319,14 +376,15 @@ let pause = true
 const doFrame = () => {
 	if (!pause) {
 		const t0 = performance.now()
-		setConfig(width, height, cx, cy, (scale *= 0.99))
+		scale *= 0.99
+		setConfig()
 		const msForCopy = performance.now() - t0
 		const msForFrame = computeAndDraw()
-		if (nFrame % 60 === 0) {
+		if (nFrame % 6 === 0) {
 			const tMs = msForCopy + msForFrame
 			const fps = (1000 / tMs).toFixed(1)
 			debug.innerText =
-				"scale=" + scale + ". " + tMs + "ms. copy=" + msForCopy + " compute+render=" + msForFrame + ". " + fps + " fps. passes=" + computePasses
+				"scale=" + scale + ". " + tMs + "ms. copy=" + msForCopy + " compute+render=" + msForFrame + ". ~" + fps + " fps. passes=" + computePasses
 
 			if (scale < 1e-7) {
 				scale = 2
