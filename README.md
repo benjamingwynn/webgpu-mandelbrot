@@ -14,9 +14,7 @@ https://webgpu-mandelbrot.netlify.app
 
 as of writing only Chrome supports WebGPU, so that's the only browser where this'll work
 
-because webgpu is limited to float32, after a certain scale zooming stops working.
-
-to address this, i need to emulate float64 support using float32's, i just haven't gotten around to it yet.
+interestingly, even after updating to use emulated f64, pixelation still occurs at the same place as before
 
 ### local development
 
