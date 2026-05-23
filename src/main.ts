@@ -384,6 +384,13 @@ const debug2 = document.createElement("code")
 let nFrame = 0
 let pause = true
 let frameTimes: number[] = []
+
+const step = () => {
+	scale *= scaleSpeed
+	setConfig()
+	computeAndDraw()
+}
+
 const doFrame = () => {
 	if (!pause) {
 		const t0 = performance.now()
@@ -426,6 +433,15 @@ playPause.onclick = () => {
 	pause = !pause
 }
 document.body.append(playPause)
+
+const stepButton = document.createElement("button")
+stepButton.type = "button"
+stepButton.innerText = "stepButton"
+stepButton.onclick = () => {
+	step()
+}
+document.body.append(stepButton)
+
 document.body.append(debug)
 document.body.append(debug2)
 const resetAll = document.createElement("button")
